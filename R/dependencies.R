@@ -359,7 +359,10 @@ code_dependencies <- function(expr){
       }
       walk(body(expr))
     } else if (is.name(expr)) {
-      new_globals <- setdiff(x = wide_deparse(expr), y = drake_fn_patterns)
+      new_globals <- setdiff(
+        x = wide_deparse(expr),
+        y = c(drake_fn_patterns, ".")
+      )
       results$globals <<- c(results$globals, new_globals)
     } else if (is.character(expr)) {
       results$strings <<- c(results$strings, expr)
