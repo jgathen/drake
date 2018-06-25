@@ -27,7 +27,8 @@ build_drake_graph <- function(
   verbose = drake::default_verbose(),
   jobs = 1,
   sanitize_plan = TRUE,
-  console_log_file = NULL
+  console_log_file = NULL,
+  cache = NULL
 ){
   force(envir)
   if (sanitize_plan){
@@ -53,7 +54,11 @@ build_drake_graph <- function(
   imports_edges <- lightly_parallelize(
     X = seq_along(imports),
     FUN = function(i){
-      imports_edges(name = import_names[[i]], value = imports[[i]])
+      imports_edges(
+        name = import_names[[i]],
+        value = imports[[i]],
+        cache = cache
+      )
     },
     jobs = jobs
   )
@@ -66,7 +71,11 @@ build_drake_graph <- function(
   commands_edges <- lightly_parallelize(
     X = seq_len(nrow(plan)),
     FUN = function(i){
-      commands_edges(target = plan$target[i], command = plan$command[i])
+      commands_edges(
+        target = plan$target[i],
+        command = plan$command[i],
+        cache = cache
+      )
     },
     jobs = jobs
   )
@@ -77,13 +86,13 @@ build_drake_graph <- function(
     igraph::simplify(remove.multiple = TRUE, remove.loops = TRUE)
 }
 
-commands_edges <- function(target, command){
-  deps <- command_dependencies(command)
+commands_edges <- function(target, command, cache){
+  deps <- command_dependencies(command, cache = cache)
   code_deps_to_edges(target = target, deps = deps)
 }
 
-imports_edges <- function(name, value){
-  deps <- import_dependencies(value)
+imports_edges <- function(name, value, cache){
+  deps <- import_dependencies(value, cache = cache)
   code_deps_to_edges(target = name, deps = deps)
 }
 

@@ -226,8 +226,8 @@ nonfile_target_dependencies <- function(targets, config, jobs = 1){
   intersect(out, config$plan$target)
 }
 
-import_dependencies <- function(expr){
-  deps <- code_dependencies(expr)
+import_dependencies <- function(expr, cache = NULL){
+  deps <- code_dependencies_mem(expr = expr, cache = cache)
   # Imported functions can't have file_out() deps # nolint
   # or target dependencies from knitr code chunks.
   # However, file_in()s are totally fine. # nolint
@@ -235,7 +235,7 @@ import_dependencies <- function(expr){
   deps
 }
 
-command_dependencies <- function(command){
+command_dependencies <- function(command, cache = NULL){
   if (!length(command)){
     return()
   }
@@ -243,7 +243,7 @@ command_dependencies <- function(command){
     return()
   }
   command <- as.character(command)
-  deps <- code_dependencies(parse(text = command))
+  deps <- code_dependencies_mem(expr = parse(text = command), cache = cache)
   deps$strings <- NULL
 
   # TODO: this block can go away when `drake`
@@ -335,6 +335,23 @@ unwrap_function <- function(funct){
     funct <- environment(funct)[["FUN"]]
   }
   funct
+}
+
+code_dependencies_mem <- function(expr, cache = NULL){
+  if (is.null(cache)){
+    code_dependencies(expr)
+  } else {
+    algo <- short_hash(cache)
+    key <- digest::digest(expr, algo = algo)
+    tryCatch(
+      cache$get(key = key, namespace = "code_dependencies"),
+      KeyError = function(e) {
+        value <- code_dependencies(expr)
+        cache$set(key = key, value = value, namespace = "code_dependencies")
+        value
+      }
+    )
+  }
 }
 
 code_dependencies <- function(expr){
